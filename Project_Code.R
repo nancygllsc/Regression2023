@@ -1,0 +1,8 @@
+install.packages(c("dplyr","ggplot2",'knitr','manipulate' ,"rmarkdown","patchwork","LaTeX"))
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(manipulate)
+library(datasets)
+library(patchwork)
+library(LaTeX)
