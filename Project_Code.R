@@ -5,4 +5,10 @@ library(knitr)
 library(manipulate)
 library(datasets)
 library(patchwork)
-library(LaTeX)
+
+data("mtcars")
+str(mtcars)
+initalPlot<-ggplot(mtcars,aes(x=disp,y=mpg,colour=factor(am)))+
+  geom_point()
+initalPlot
+  
