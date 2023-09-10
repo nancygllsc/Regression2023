@@ -11,4 +11,3 @@ str(mtcars)
 initalPlot<-ggplot(mtcars,aes(x=disp,y=mpg,colour=factor(am)))+
   geom_point()
 initalPlot
-  
