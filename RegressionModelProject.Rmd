@@ -1,0 +1,408 @@
+---
+title: "RegressionModelProject"
+author: "Nancy Pulido"
+date: "2024-08-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+```
+
+## Exploratory Data
+```{r libraries, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(manipulate)
+library(datasets)
+library(patchwork)
+library(Hmisc)
+library(pastecs)
+library(MASS)
+library(broom)
+library(tidyverse)
+library(car)
+library(modelr)
+require(stats); require(graphics);require(ggplot2);require(GGally)
+
+```
+
+#1. Exploratory Data
+Data mtcars 
+```{r part1, include=TRUE ,message=FALSE}
+
+#exploratory data
+  head(mtcars)
+  str(mtcars)
+  summary(mtcars)
+  describe(mtcars)
+```
+
+## Exploratory Plots
+
+
+```{r fig.height=10, fig.width=10, message=FALSE, exploratoryGraphs, echo=FALSE, message=FALSE}
+#graph 1 - general
+fit<- lm(mpg~.,data = mtcars)
+rawSummary<-summary(fit) #all variables
+rawCoef<-rawSummary$coefficients
+
+#analyze data - raw- Graph raw data/graph -all
+  # Plot the coefficients using ggplot2-
+    #plot showing the coefficients of the model along with their error bars
+tidy_fit <- tidy(fit)
+  
+g<- ggpairs(subset(mtcars),
+               lower = list(continuous ="smooth", method = "loess"),
+               title = "Raw Data MTCARS.")
+g
+
+
+#graph2 with respect to -am 
+
+g2 <- ggpairs(mtcars,
+                lower = list(continuous = wrap("smooth", method = "loess")),
+                title = "Raw Data MTCARS.",
+                aes(colour=factor(am))
+              )
+g2
+  
+
+
+
+  
+```
+
+```{r fig.height=10, fig.width=10, message=FALSE, echo=FALSE, message=FALSE}
+# Open a PDF graphics device
+  #pdf("Coefficients Plot.pdf")
+  # Generate the diagnostic plots
+  par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+  plot(fit,main="Coefficients Plot (mpg~.)")
+  
+  # Close the graphics device
+  #dev.off()
+  
+
+```
+
+#Part 2: Exploratory Models
+
+```{r echo=FALSE, message=FALSE}
+#summary report table: collects model info to be compared
+  summary_df <- data.frame(
+    Model = character(),
+    Adj_R_Squared=numeric(),
+    AIC=numeric(),
+    BIC=numeric(),
+    SignificantPredictors = numeric())
+  
+```
+
+#General Model
+model:mpg~cyl
+```{r echo=FALSE, message=FALSE}
+# model: mpg~cyl
+  
+  fitCyl<- lm(mpg~cyl,data = mtcars)
+  SummaryCyl<-summary(fitCyl) #all variables
+  kable(SummaryCyl$coefficients, caption = "Coefficients for model: mpg~cyl")
+  
+  kable(anova(fit,fitCyl), caption = " Analysis of Variance Table Model: mpg~cyl")
+  
+  
+  summary_df<-rbind(summary_df,
+                    data.frame(Model= "mpg~cyl",
+                               Adj_R_Squared=SummaryCyl$adj.r.squared,
+                               AIC=AIC(fitCyl),
+                               BIC=BIC(fitCyl),
+                              SignificatPredictors=1))
+  
+  
+  
+```
+
+#3.Comparing Models: Models - loop - explain function
+
+```{r, echo=FALSE,message=FALSE}
+MTCARSdataColNames <- names(mtcars)  # Get column names of the mtcars dataset
+  
+  # Loop through columns 3 to 10
+  for (i in 3:10) {
+    #single variable models
+    #print(paste("Single Model: ", paste0("mpg~",MTCARSdataColNames[i])))
+    singleModelFit<-lm(as.formula(paste0("mpg~",MTCARSdataColNames[i])),data=mtcars)
+    SummarySingle<-summary(singleModelFit)
+    coefSingleModel<-SummarySingle$coefficients
+    summary_df<-rbind(summary_df,data.frame(
+      Model= paste0("mpg~",MTCARSdataColNames[i]),
+      Adj_R_Squared=SummarySingle$adj.r.squared,
+      AIC=AIC(singleModelFit),
+      BIC=BIC(singleModelFit),
+        SignificatPredictors=1))
+    
+    
+    #if (coefSingleModel[2,4] <= 0.05) {}
+    #print("----------------------------------------------------------")
+    #multiple variable models
+    model <- paste0("+", paste(MTCARSdataColNames[3:i], collapse = " + "))
+    model2<-paste0("mpg~ cyl",model)
+    fit<-lm(as.formula(model2),data=mtcars)
+    coef<-summary(fit)$coefficients
+    rsqr<-summary(fit)$adj.r.squared
+    #print("Model mpg~.")
+    #print(rawCoef)
+    report<-0
+    
+    for (p_value in coef[, 4]) {
+      if (p_value <= 0.05) {
+        report <- report + 1
+      }
+    }
+    summary_df<-rbind(summary_df,data.frame(Model= model2,
+                                            Adj_R_Squared=rsqr, 
+                                            AIC=AIC(fit),
+                                            BIC=BIC(fit),
+                                            SignificatPredictors=report))
+    
+  
+  }
+  
+```
+
+Models summary - loop print out
+
+```{r echo=FALSE, results='markup'}
+kable(summary_df, caption = "Models Table")
+```
+
+# 4 & 5. Model Diagnostics and models validation
+based on the best adjusted R squared models from loop
+```{r echo=FALSE,message=FALSE}
+#best models based on adjusted R2
+  maxSigPredictors<-top_n(summary_df,n=4,Adj_R_Squared)
+  max(summary_df$Adj_R_Squared)
+  
+  for(n in 1:length(maxSigPredictors$Model)){
+    modelName<-paste0("modelF",n)
+    modelF<-lm(as.formula(maxSigPredictors$Model[n]),data = mtcars)
+    assign(modelName, modelF)
+    assign(paste0(modelName,"VIF"),vif(modelF))
+    assign(paste0(modelName,"RMSE"),rmse(modelF,mtcars))
+    #plot --ggplot
+    # Tidy the model fit
+    tidyFit <- tidy(modelF)
+    
+    plotFinal <- ggplot(tidyFit, aes(x = term, y = estimate)) +
+      geom_point() +
+      geom_errorbar(
+        aes(ymin = estimate - std.error, ymax = estimate + std.error),
+        width = 0.2) +
+      labs(title = paste("Plot: ",n), x = "Term", y = "Estimate") +
+      theme_minimal()
+    
+    assign(paste0(modelName,"_GGPlot"),plotFinal)
+    #plot()
+    modelName2<-paste0("modelDiagnostics_",n,".pdf")
+    
+    # Open a PDF graphics device
+    pdf(modelName2)
+    # Generate the diagnostic plots
+    par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+    plot(modelF,main=modelName2)
+    
+    # Close the graphics device
+    dev.off()
+    
+    
+    #5. Validation:
+    # Split the data into training and testing sets
+    set.seed(123)
+    train_indices <- sample(1:nrow(mtcars), size = 0.7 * nrow(mtcars))
+    train_data <- mtcars[train_indices, ]
+    test_data <- mtcars[-train_indices, ]
+    
+    # Fit the model on the training set
+    train_model <- lm(modelF, data = train_data)
+    
+    # Predict on the test set
+    predictions <- predict(train_model, newdata = test_data)
+    
+    # Calculate RMSE (Root Mean Squared Error)
+    rmse <- sqrt(mean((test_data$mpg - predictions)^2))
+    assign(paste0("ValidationRMSE",modelName),rmse)
+
+  }
+```
+
+#Analysis 1
+- VIF values help to identify multicollinearity among predictors. Values above 10 indicate problematic multicollinearity.
+- RMSE is a measure of how well the model's predictions match the actual values. Lower RMSE indicates better model performance.
+
+Residual Plots:
+Diagnostic plots help to check the assumptions of linear regression, including linearity, homoscedasticity, and normality of residuals.
+
+
+
+Models with highest Adjusted R squared
+anova - explain what it does
+
+```{r}
+
+#anova
+  anova(modelF1,modelF2,modelF3,modelF4)
+  c(modelF1VIF, modelF2VIF,modelF3VIF,modelF4VIF)
+  c(modelF1RMSE,modelF2RMSE,modelF3RMSE,modelF4RMSE)
+```
+
+#6 corrections to Model Diagnostics
+    -  removing cyl and displasment 
+    - comparison with first set 
+   - choose best models based on adjusted R2
+  
+```{r echo=FALSE,message=FALSE}
+  maxSigPredictors<-top_n(summary_df,n=4,Adj_R_Squared)
+  max(summary_df$Adj_R_Squared)
+  
+  for(n in 1:length(maxSigPredictors$Model)){
+    modelName<-paste0("model2F_",n)
+    modelString <- as.character(maxSigPredictors$Model[n])
+    modelString <- sub("cyl\\+disp \\+ ", "", modelString)  # Corrected the regex pattern
+    #print(modelString)
+    modelF<-lm(as.formula(modelString),data = mtcars)
+    assign(modelName, modelF)
+    assign(paste0(modelName,"VIF"),vif(modelF))
+    assign(paste0(modelName,"RMSE"),rmse(modelF,mtcars))
+    #plot --ggplot
+    # Tidy the model fit
+    tidyFit <- tidy(modelF)
+    
+    plotFinal <- ggplot(tidyFit, aes(x = term, y = estimate)) +
+      geom_point() +
+      geom_errorbar(
+        aes(ymin = estimate - std.error, ymax = estimate + std.error),
+        width = 0.2) +
+      labs(title = paste("Plot: ",n), x = "Term", y = "Estimate") +
+      theme_minimal()
+    
+    assign(paste0(modelName,"_GGPlot"),plotFinal)
+    #plot()
+    modelName2<-paste0("model2Diagnostics_",n,".pdf")
+    
+    # Open a PDF graphics device
+    pdf(modelName2)
+    # Generate the diagnostic plots
+    par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+    plot(modelF,main=modelName2)
+    
+    # Close the graphics device
+    dev.off()
+    
+    #5. Validation:
+    # Split the data into training and testing sets
+    set.seed(123)
+    train_indices <- sample(1:nrow(mtcars), size = 0.7 * nrow(mtcars))
+    train_data <- mtcars[train_indices, ]
+    test_data <- mtcars[-train_indices, ]
+    
+    # Fit the model on the training set
+    train_model <- lm(modelF, data = train_data)
+    
+    # Predict on the test set
+    predictions <- predict(train_model, newdata = test_data)
+    
+    # Calculate RMSE (Root Mean Squared Error)
+    rmse <- sqrt(mean((test_data$mpg - predictions)^2))
+    assign(paste0("ValidationRMSE",modelName),rmse)
+    
+    
+  }
+```
+ 
+ print new diagnostics (remove cyl and disp)
+ - anova model results: 
+ - vif results shoes cyl and disp values implies multilinearity. 
+ - rim results:
+ 
+ 
+```{r}
+#anova
+  anova(model2F_1,model2F_2,model2F_3,model2F_4)
+  c(model2F_1VIF, model2F_2VIF,model2F_3VIF,model2F_4VIF)
+  c(model2F_1RMSE,model2F_2RMSE,model2F_3RMSE,model2F_4RMSE)
+  
+
+```
+discuss the new anova results
+- while the results are more signficant than the previous set, there is not signigficat results. However, the models suggest the presence of the power equation 
+p=force*velocity 
+where power is expressed in hp. 
+
+#New Model
+explain power equation model 
+```{r}
+proposedLM1<-lm(mpg~(qsec+hp), data=mtcars)
+proposedLM2<-lm(mpg~hp,data=mtcars)
+  
+```
+
+#diagnostic to new model 
+
+```{r}
+
+anova(model2F_1,model2F_2,model2F_3,model2F_4,proposedLM1,proposedLM2)
+
+```
+discuss the results 
+
+- mpg~(qsec+hp) shows a better variace suggesting a possible correlation with mpg 
+
+#response to project question 1
+
+explain approach 
+- two sets manual and automatic, applied to the best fitting model 
+```{r echo=FALSE,message=FALSE}
+manualTransmision<-filter(mtcars,am==1)
+  automaticTransmition<-filter(mtcars,am==0) 
+  lm(mpg ~ (hp + qsec),data=manualTransmision)
+  lm(mpg ~ (hp + qsec),data=automaticTransmition)
+  
+  summary(lm(mpg ~ (hp + qsec),data=manualTransmision))
+  summary(lm(mpg ~ (hp + qsec),data=automaticTransmition))
+  
+  
+```
+interpretation:
+
+Residuals: The distribution of residuals (differences between observed and predicted mpg values) indicates the variability in the model's predictions. The min, 1Q, median, 3Q, and max values provide a summary of this distribution.
+Coefficients:
+Intercept (2.18940): This is the estimated mpg when both horsepower (hp) and quarter-mile time (qsec) are zero. While this isn't practically interpretable, it serves as the baseline value.
+hp (-0.03141): The negative coefficient suggests that an increase in horsepower is associated with a decrease in mpg. However, this relationship is not statistically significant (p-value = 0.225).
+qsec (1.50849): The positive coefficient suggests that an increase in the quarter-mile time is associated with an increase in mpg, but this relationship is also not statistically significant (p-value = 0.215).
+
+Model Significance:
+Residual standard error (3.733): This indicates the average distance that the observed values fall from the regression line.
+Multiple R-squared (0.6946): This indicates that approximately 69.46% of the variability in mpg is explained by the model.
+Adjusted R-squared (0.6335): This adjusts the R-squared value for the number of predictors in the model.
+F-statistic (11.37) and p-value (0.002657): The F-statistic tests whether at least one of the predictors is statistically significant. The low p-value indicates that the model is statistically significant overall.
+Automatic Transmission Model
+Interpretation:
+
+Residuals: The residuals show the variability in the model's predictions for automatic transmissions.
+Coefficients:
+Intercept (28.21035): This represents the estimated mpg when both horsepower and quarter-mile time are zero.
+hp (-0.06099): The negative coefficient indicates that an increase in horsepower is associated with a decrease in mpg, and this relationship is statistically significant (p-value = 0.00205).
+qsec (-0.07088): The coefficient suggests a slight decrease in mpg with an increase in quarter-mile time, but this relationship is not statistically significant (p-value = 0.89142).
+Model Significance:
+Residual standard error (2.258): Indicates the average distance that the observed values fall from the regression line.
+Multiple R-squared (0.6918): Indicates that approximately 69.18% of the variability in mpg is explained by the model.
+Adjusted R-squared (0.6532): Adjusts the R-squared value for the number of predictors in the model.
+F-statistic (17.95) and p-value (8.146e-05): The low p-value indicates that the model is statistically significant overall.
+Comparison and Conclusion
+Both models have similar R-squared values, indicating that they explain a similar proportion of the variability in mpg.
+The model for automatic transmissions has a statistically significant coefficient for horsepower, indicating a reliable negative relationship between horsepower and mpg.
+The model for manual transmissions does not have statistically significant coefficients for either predictor.
+The overall model significance (F-statistic and p-value) is strong for both models, but slightly stronger for the automatic transmission model.
+Based on this analysis, the relationship between horsepower, quarter-mile time, and mpg is more pronounced and statistically significant in automatic cars compared to manual cars in the mtcars dataset.
