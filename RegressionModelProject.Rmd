@@ -1,15 +1,24 @@
 ---
-title: "RegressionModelProject"
+title: "Linear Regression Model Project"
 author: "Nancy Pulido"
 date: "2024-08-06"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
 ```
 
-## Exploratory Data
+## Introduction:
+
+This report leverages the mtcars dataset to address two key questions:
+
+Comparative Analysis of Transmission Types: Determine whether vehicles with automatic transmissions exhibit better fuel efficiency (measured in miles per gallon, MPG) compared to those with manual transmissions. Quantification of MPG Differences: Precisely measure and analyze the MPG difference between automatic and manual transmissions.
+
+# Comparison of Manual and Automatic Transmissions Efficiency.
+
 ```{r libraries, include=FALSE}
 
 library(dplyr)
@@ -29,19 +38,35 @@ require(stats); require(graphics);require(ggplot2);require(GGally)
 
 ```
 
-#1. Exploratory Data
-Data mtcars 
-```{r part1, include=TRUE ,message=FALSE}
+# 1. Exploratory Data Analysis (EDA)
+
+The mtcars dataset contains 32 observations of 11 variables:
+
+- mpg: Miles per gallon
+- cyl: Number of cylinders
+- disp: Displacement (cubic inches)
+- hp: Gross horsepower
+- drat: Rear axle ratio
+- wt: Weight (1000 lbs)
+- qsec: 1/4 mile time
+- vs: Engine (0 = V-shaped, 1 = straight)
+- am: Transmission (0 = automatic, 1 = manual)
+- gear: Number of forward gears
+- carb: Number of carburetors
+
+
+
+```{r part1, echo=FALSE,include=TRUE ,message=FALSE}
 
 #exploratory data
-  head(mtcars)
-  str(mtcars)
-  summary(mtcars)
-  describe(mtcars)
+  print(str(mtcars))
+  #kable(head(mtcars))
+  
+  kable(summary(mtcars), caption = "Data Summary")
+ dataDescription<-describe(mtcars)
 ```
 
 ## Exploratory Plots
-
 
 ```{r fig.height=10, fig.width=10, message=FALSE, exploratoryGraphs, echo=FALSE, message=FALSE}
 #graph 1 - general
@@ -56,26 +81,42 @@ tidy_fit <- tidy(fit)
   
 g<- ggpairs(subset(mtcars),
                lower = list(continuous ="smooth", method = "loess"),
-               title = "Raw Data MTCARS.")
+               title = "Subset MTCARS ")
 g
+
 
 
 #graph2 with respect to -am 
 
 g2 <- ggpairs(mtcars,
                 lower = list(continuous = wrap("smooth", method = "loess")),
-                title = "Raw Data MTCARS.",
+                title = "Raw Data MTCARS by Trasnmission Type.",
                 aes(colour=factor(am))
               )
 g2
   
 
-
+ 
 
   
 ```
 
+# Part 2: Exploratory Models
+### Model mpg~. 
+
 ```{r fig.height=10, fig.width=10, message=FALSE, echo=FALSE, message=FALSE}
+g1 <- ggplot(tidy_fit, aes(x = term, y = estimate)) +
+    geom_point() +
+    geom_errorbar(
+      aes(ymin = estimate - std.error, ymax = estimate + std.error),
+      width = 0.2) +
+    labs(title = "Coefficients Plot Model: mpg~. ", 
+         x = "Term", 
+         y = "Estimate") +
+    theme_minimal()
+  g1
+
+
 # Open a PDF graphics device
   #pdf("Coefficients Plot.pdf")
   # Generate the diagnostic plots
@@ -88,7 +129,7 @@ g2
 
 ```
 
-#Part 2: Exploratory Models
+
 
 ```{r echo=FALSE, message=FALSE}
 #summary report table: collects model info to be compared
@@ -101,16 +142,16 @@ g2
   
 ```
 
-#General Model
-model:mpg~cyl
+### Finding More Models
+The methodology for this report involves a systemic approach. The code generates a report of a series of potential models, adding one variable at a time and subsequently comparing their statistical outcomes. This preliminary comparative report allows for previewing and identifying the model that best fits the data, ensuring robust and accurate predictions.
 ```{r echo=FALSE, message=FALSE}
 # model: mpg~cyl
   
   fitCyl<- lm(mpg~cyl,data = mtcars)
   SummaryCyl<-summary(fitCyl) #all variables
-  kable(SummaryCyl$coefficients, caption = "Coefficients for model: mpg~cyl")
+  #kable(SummaryCyl$coefficients, caption = "Coefficients for model: mpg~cyl")
   
-  kable(anova(fit,fitCyl), caption = " Analysis of Variance Table Model: mpg~cyl")
+  #kable(anova(fit,fitCyl), caption = " Analysis of Variance Table Model: mpg~cyl")
   
   
   summary_df<-rbind(summary_df,
@@ -123,8 +164,6 @@ model:mpg~cyl
   
   
 ```
-
-#3.Comparing Models: Models - loop - explain function
 
 ```{r, echo=FALSE,message=FALSE}
 MTCARSdataColNames <- names(mtcars)  # Get column names of the mtcars dataset
@@ -171,19 +210,27 @@ MTCARSdataColNames <- names(mtcars)  # Get column names of the mtcars dataset
   }
   
 ```
+### Preliminary Report
+The table below presents all the models under consideration. Each model in the table was fitted using the R function lm() and evaluated using the corresponding "summary(lm)" output. The models are assessed based on the following criteria:
 
-Models summary - loop print out
+- Significant Predictors: The significance of each predictor was determined using the "summary(lm)\$coefficients" output, specifically by examining the p-values associated with the t-statistics (found in the Pr(\>\|t\|) column). A predictor is considered significant if its p-value is less than 0.05, indicating a strong association with the response variable. The table shows the number of significant predictors for each model.
+- Adjusted R-Squared: The adjusted R-squared value, obtained from "summary(lm)\$adj.r.squared", is a crucial metric representing the proportion of variance in the dependent variable explained by the independent variables, adjusted for the number of predictors. A higher adjusted R-squared value indicates a better fit, accounting for model complexity.
+- AIC and BIC: The Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) were calculated using the R functions AIC(lm) and BIC(lm), respectively. Both criteria are used for model selection, balancing the model fit and complexity trade-offs. AIC tends to select slightly more complex models, imposing a lighter penalty for additional parameters, whereas BIC is stricter, favoring simpler models as sample size increases. This report will select the models with the 4 highest adj_R_Squared, lowest AIC and BIC values as the preferred models.
 
 ```{r echo=FALSE, results='markup'}
+summary_df$ModelNUmber <- seq_along(summary_df$Model)
 kable(summary_df, caption = "Models Table")
 ```
 
 # 4 & 5. Model Diagnostics and models validation
-based on the best adjusted R squared models from loop
+
+ 
+
 ```{r echo=FALSE,message=FALSE}
 #best models based on adjusted R2
   maxSigPredictors<-top_n(summary_df,n=4,Adj_R_Squared)
-  max(summary_df$Adj_R_Squared)
+  RqrdHighest<-max(summary_df$Adj_R_Squared)
+  kable(maxSigPredictors,caption = "Selected Models by Highest adj_R_squared")
   
   for(n in 1:length(maxSigPredictors$Model)){
     modelName<-paste0("modelF",n)
@@ -208,13 +255,13 @@ based on the best adjusted R squared models from loop
     modelName2<-paste0("modelDiagnostics_",n,".pdf")
     
     # Open a PDF graphics device
-    pdf(modelName2)
+    #pdf(modelName2)
     # Generate the diagnostic plots
     par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
     plot(modelF,main=modelName2)
     
     # Close the graphics device
-    dev.off()
+    #dev.off()
     
     
     #5. Validation:
@@ -237,34 +284,37 @@ based on the best adjusted R squared models from loop
   }
 ```
 
-#Analysis 1
-- VIF values help to identify multicollinearity among predictors. Values above 10 indicate problematic multicollinearity.
-- RMSE is a measure of how well the model's predictions match the actual values. Lower RMSE indicates better model performance.
+### Analysis 
+- Anova analysis of variance tables for one or more fitted model objects.the Residual Sum of Squares (RRS), is a metric used in regression analysis to measure the variation of the data that is not explained by the model. It represents the difference between the observed values and the predicted values. A small R-Anova value indicates a good fit between the model and the data, suggesting that most of the variation is explained by the factors included in the model.
 
-Residual Plots:
-Diagnostic plots help to check the assumptions of linear regression, including linearity, homoscedasticity, and normality of residuals.
+- Variance Indicator Factor (VIF) VIF values help to identify multicollinearity among predictors.Multicollinearity occurs when two or more predictors are highly correlated, leading to unstable estimates of regression coefficients.Values above 10 indicate problematic multicollinearity. 
+
+- Root Mean Squared Error, RMSE is a measure of how well the model's predictions match the actual values. Lower RMSE indicates better model performance.
+
+- Residual Plots: Diagnostic plots help to check the assumptions of linear regression, including linearity, homoscedasticity, and normality of residuals.
 
 
-
-Models with highest Adjusted R squared
-anova - explain what it does
-
-```{r}
-
-#anova
+```{r echo=FALSE,message=FALSE}
+  print("ANOVA")
   anova(modelF1,modelF2,modelF3,modelF4)
-  c(modelF1VIF, modelF2VIF,modelF3VIF,modelF4VIF)
-  c(modelF1RMSE,modelF2RMSE,modelF3RMSE,modelF4RMSE)
+  vifModels<-list(modelF1VIF, modelF2VIF,modelF3VIF,modelF4VIF)
+  rmseModels<-list(modelF1RMSE,modelF2RMSE,modelF3RMSE,modelF4RMSE)
+  print("Variance Indicator Factor VIF")
+  print(vifModels)
+  print("RMSE")
+  print(rmseModels)
+  #plots
+  
+  
+  
 ```
 
-#6 corrections to Model Diagnostics
-    -  removing cyl and displasment 
-    - comparison with first set 
-   - choose best models based on adjusted R2
-  
+# 6 Corrections to Model Diagnostics 
+In the analysis of variance, at first glance model 1 seems to be significant model. However, cyl and dis show high multicollinearity in all models, that ia also confirmed by the RMS. Additionally, the high RRS values suggests a better fit model exist. To address the issue, cyl and disp are removed from all 4 models and then are compared with first set. 
+
 ```{r echo=FALSE,message=FALSE}
   maxSigPredictors<-top_n(summary_df,n=4,Adj_R_Squared)
-  max(summary_df$Adj_R_Squared)
+  #max(summary_df$Adj_R_Squared)
   
   for(n in 1:length(maxSigPredictors$Model)){
     modelName<-paste0("model2F_",n)
@@ -292,13 +342,13 @@ anova - explain what it does
     modelName2<-paste0("model2Diagnostics_",n,".pdf")
     
     # Open a PDF graphics device
-    pdf(modelName2)
+    #pdf(modelName2)
     # Generate the diagnostic plots
     par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
     plot(modelF,main=modelName2)
     
     # Close the graphics device
-    dev.off()
+    #dev.off()
     
     #5. Validation:
     # Split the data into training and testing sets
@@ -320,89 +370,135 @@ anova - explain what it does
     
   }
 ```
- 
- print new diagnostics (remove cyl and disp)
- - anova model results: 
- - vif results shoes cyl and disp values implies multilinearity. 
- - rim results:
- 
- 
-```{r}
-#anova
-  anova(model2F_1,model2F_2,model2F_3,model2F_4)
-  c(model2F_1VIF, model2F_2VIF,model2F_3VIF,model2F_4VIF)
-  c(model2F_1RMSE,model2F_2RMSE,model2F_3RMSE,model2F_4RMSE)
-  
 
-```
-discuss the new anova results
-- while the results are more signficant than the previous set, there is not signigficat results. However, the models suggest the presence of the power equation 
-p=force*velocity 
-where power is expressed in hp. 
-
-#New Model
-explain power equation model 
-```{r}
-proposedLM1<-lm(mpg~(qsec+hp), data=mtcars)
-proposedLM2<-lm(mpg~hp,data=mtcars)
-  
-```
-
-#diagnostic to new model 
-
-```{r}
-
-anova(model2F_1,model2F_2,model2F_3,model2F_4,proposedLM1,proposedLM2)
-
-```
-discuss the results 
-
-- mpg~(qsec+hp) shows a better variace suggesting a possible correlation with mpg 
-
-#response to project question 1
-
-explain approach 
-- two sets manual and automatic, applied to the best fitting model 
 ```{r echo=FALSE,message=FALSE}
-manualTransmision<-filter(mtcars,am==1)
-  automaticTransmition<-filter(mtcars,am==0) 
-  lm(mpg ~ (hp + qsec),data=manualTransmision)
-  lm(mpg ~ (hp + qsec),data=automaticTransmition)
-  
-  summary(lm(mpg ~ (hp + qsec),data=manualTransmision))
-  summary(lm(mpg ~ (hp + qsec),data=automaticTransmition))
-  
-  
+#anova
+  print("ANOVA")
+  anova(model2F_1,model2F_2,model2F_3,model2F_4)
+  vifModels2<-list(model2F_1VIF, model2F_2VIF,model2F_3VIF,model2F_4VIF)
+  rmseModels2<-list(model2F_1RMSE,model2F_2RMSE,model2F_3RMSE,model2F_4RMSE)
+  print("Variance Indicator Factor VIF - Corrected Models")
+  print(vifModels2)
+  print("RMSE-Corrected Models")
+  print(rmseModels2)
+
 ```
-interpretation:
+- anova model results: 
+  in general models 2 and 3 shows an improvement in P-value. However, still not significant. 
+- RRS and sum of Sq are higher compared to first set .
+- VIF/RMSE the improved model shows improved VIF below 6 values and slightly larger RMSE values. 
 
-Residuals: The distribution of residuals (differences between observed and predicted mpg values) indicates the variability in the model's predictions. The min, 1Q, median, 3Q, and max values provide a summary of this distribution.
-Coefficients:
-Intercept (2.18940): This is the estimated mpg when both horsepower (hp) and quarter-mile time (qsec) are zero. While this isn't practically interpretable, it serves as the baseline value.
-hp (-0.03141): The negative coefficient suggests that an increase in horsepower is associated with a decrease in mpg. However, this relationship is not statistically significant (p-value = 0.225).
-qsec (1.50849): The positive coefficient suggests that an increase in the quarter-mile time is associated with an increase in mpg, but this relationship is also not statistically significant (p-value = 0.215).
+Despite of the lack of significant improvemnts, the results hits the a rate describing force with respect to time. Which relates to the equation of power. 
 
-Model Significance:
-Residual standard error (3.733): This indicates the average distance that the observed values fall from the regression line.
-Multiple R-squared (0.6946): This indicates that approximately 69.46% of the variability in mpg is explained by the model.
-Adjusted R-squared (0.6335): This adjusts the R-squared value for the number of predictors in the model.
-F-statistic (11.37) and p-value (0.002657): The F-statistic tests whether at least one of the predictors is statistically significant. The low p-value indicates that the model is statistically significant overall.
-Automatic Transmission Model
-Interpretation:
 
-Residuals: The residuals show the variability in the model's predictions for automatic transmissions.
-Coefficients:
-Intercept (28.21035): This represents the estimated mpg when both horsepower and quarter-mile time are zero.
-hp (-0.06099): The negative coefficient indicates that an increase in horsepower is associated with a decrease in mpg, and this relationship is statistically significant (p-value = 0.00205).
-qsec (-0.07088): The coefficient suggests a slight decrease in mpg with an increase in quarter-mile time, but this relationship is not statistically significant (p-value = 0.89142).
-Model Significance:
-Residual standard error (2.258): Indicates the average distance that the observed values fall from the regression line.
-Multiple R-squared (0.6918): Indicates that approximately 69.18% of the variability in mpg is explained by the model.
-Adjusted R-squared (0.6532): Adjusts the R-squared value for the number of predictors in the model.
-F-statistic (17.95) and p-value (8.146e-05): The low p-value indicates that the model is statistically significant overall.
-Comparison and Conclusion
-Both models have similar R-squared values, indicating that they explain a similar proportion of the variability in mpg.
-The model for automatic transmissions has a statistically significant coefficient for horsepower, indicating a reliable negative relationship between horsepower and mpg.
-The model for manual transmissions does not have statistically significant coefficients for either predictor.
-The overall model significance (F-statistic and p-value) is strong for both models, but slightly stronger for the automatic transmission model.
-Based on this analysis, the relationship between horsepower, quarter-mile time, and mpg is more pronounced and statistically significant in automatic cars compared to manual cars in the mtcars dataset.
+### Proposed Models
+
+Exclusion of the variables "cyl" and "disp" does not result in significant improvements in model performance compared to the initial set of models.
+
+Given that power is defined here as the total horsepower of the car (where 1 horsepower equals 735.5 watts, or kg·m²/s²), which reflects the relationship between mass, distance, and time, two new models have been introduced. These additions aim to address the multicollinearity observed in the previous models.
+
+1. mpg~(wt+qsec)
+2. mpg~(qsec+hp)
+
+```{r echo=FALSE,message=FALSE}
+proposedLM1<-lm(mpg~(wt+qsec), data=mtcars)
+proposedLM2<-lm(mpg~(qsec+hp),data=mtcars)
+```
+
+#### Diagnostic to new models
+
+```{r  echo=FALSE,message=FALSE}
+  print("ANOVA")
+
+anova(modelF1,modelF2,modelF3,modelF4,proposedLM1,proposedLM2)
+
+vifModels3<-list( modelF1VIF, modelF2VIF, modelF3VIF, modelF4VIF, model2F_1VIF, model2F_2VIF,model2F_3VIF,model2F_4VIF,vif(proposedLM1),(vif(proposedLM2)))
+
+rmseModels3<-list(modelF1RMSE, modelF2RMSE, modelF3RMSE, modelF4RMSE,rmse(proposedLM1,mtcars),rmse(proposedLM2,mtcars))
+
+
+  print("Variance Indicator Factor VIF - All Models")
+  print(vifModels3)
+  print("RMSE- All Models")
+  print(rmseModels3)
+  
+par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+plot(proposedLM1,main="Proposed Model 1")
+
+par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+plot(proposedLM2,main="Proposed Model 2")
+    
+    
+
+```
+
+### Final Model
+It's important to note that the ANOVA test results align with the Q-Q Residual Plots for each model, showing that there is little statistically significant improvement, particularly in the tails. In most plots, the tails deviate noticeably from the linear regression line. However, Model 5 demonstrates a distinct pattern, where the residuals eventually return to the line. In terms of variance, Model 5 also shows the least multicollinearity according to the VIF results, despite having a significantly lower RMSE compared to the other models. Therefore, model 5 is used to predict and answers the questions proposed in this report. 
+
+# Response to project question 1
+
+Now that the linear model is established, it's beneficial to visualize the data before making predictions.
+
+```{r echo=FALSE,message=FALSE}
+#transmissions performance 
+ggplot(mtcars,
+         aes(sample=mpg,color=factor(am)))+
+    stat_qq()+
+    stat_qq_line()+
+  labs(title = "MTCARS Gas Consumption by Transmission",
+       caption = "1 = Manual Transmission. 0 = Automatic transmission")
+
+
+```
+
+Based on the graph, there's minimal difference in MPG between the two transmission types; however, manual transmissions tend to have slightly higher MPG. While it might be tempting to simply observe where the two datasets intersect to determine the difference, this report aims to analyze the overall trend. To achieve this, a simulation using R's prediction function is employed. The difference in the mean predicted MPG between the two subsets quantifies the fuel efficiency gap between manual and automatic cars.
+
+### Prediction 
+
+```{r  echo=FALSE,message=FALSE }
+finalModel<-proposedLM1
+
+manualTransmision<-filter(mtcars,am==1)
+automaticTransmition<-filter(mtcars,am==0) 
+
+ auto_pred<- predict(finalModel, newdata = automaticTransmition)
+ manual_pred<-predict(finalModel,newdata = manualTransmision)
+
+ # Compare the predicted values
+print("Automatic Transmission")
+auto_pred
+print("Manual Transmission")
+manual_pred 
+
+# Mean predicted mpg for automatic cars
+mean_auto_pred <- mean(auto_pred)
+
+# Mean predicted mpg for manual cars
+mean_manual_pred <- mean(manual_pred)
+
+# Difference in mpg
+mpg_difference <- mean_manual_pred - mean_auto_pred
+print("Mean Difference")
+mpg_difference
+
+```
+
+# Results: 
+Automatic transmissions are more mpg efficient than manual transmissions. by a factor of 6.090 mpg. Which makes sense because automatic transmissions selects the right gear without driver input. 
+
+
+```{r echo=FALSE,message=FALSE}
+# Create a data frame for ggplot2
+data <- data.frame(
+  Dataset = factor(c("Manual", "Automatic")),
+  Mean = c(mean_manual_pred, mean_auto_pred)
+)
+
+
+ggplot(data, aes(x = Dataset, y = Mean)) +
+  geom_point(size = 4, color = "blue") +
+  geom_line(aes(group = 1), color = "red", linetype = "dashed") +
+  labs(title = "Automatic and Manual Transmissions Dataset Means Comparison",
+       x = "Dataset", y = "Mean Value") +
+  theme_minimal()
+```

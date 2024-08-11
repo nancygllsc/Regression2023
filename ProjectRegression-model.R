@@ -23,6 +23,8 @@ require(stats); require(graphics);require(ggplot2);require(GGally)
   head(mtcars)
   str(mtcars)
   summary(mtcars)
+  describe<-describe(mtcars)
+  
   describe(mtcars)
   g<- ggpairs(subset(mtcars),
                lower = list(continuous ="smooth", method = "loess"),
@@ -402,14 +404,11 @@ require(stats); require(graphics);require(ggplot2);require(GGally)
   
  
 #--------------------------------------------------------------------------
-  
-  
-  
-  
+
 
   
 
-  
+#_____________________________________________________________________________ 
   
    # Creating a list with filtered data and descriptions removing "am" and "vs"
     data_list <- list(
